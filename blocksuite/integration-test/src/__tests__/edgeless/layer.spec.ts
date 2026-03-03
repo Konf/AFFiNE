@@ -9,6 +9,7 @@ import type {
   NoteBlockModel,
 } from '@blocksuite/affine/model';
 import { generateKeyBetween } from '@blocksuite/affine/std/gfx';
+import { Bound } from '@blocksuite/global/gfx';
 import type { BlockComponent } from '@blocksuite/std';
 import type { BlockModel, Store } from '@blocksuite/store';
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -161,6 +162,45 @@ test('a new layer should be created in canvasLayers prop when the topmost layer 
   addNote(doc);
 
   expect(service.layer.canvasLayers.length).toBe(3);
+});
+
+test('a new frame should be on the bottom layer', async () => {
+  const shapeId = service.crud.addElement('shape', {
+    shapeType: 'rect',
+    xywh: '[100,100,100,100]',
+  })!;
+  const noteId = addNote(doc, {
+    xywh: '[220,100,100,100]',
+  });
+  await wait();
+
+  const frameFromBound = service.frame.createFrameOnBound(
+    new Bound(90, 90, 260, 120)
+  );
+  await wait();
+
+  let sortedIds = service.edgelessElements.map(element => element.id);
+  expect(sortedIds[0]).toBe(frameFromBound.id);
+  expect(sortedIds[1]).toBe(shapeId);
+  expect(sortedIds[2]).toBe(noteId);
+
+  service.selection.set({
+    elements: [frameFromBound.id],
+    editing: false,
+  });
+  await wait();
+
+  const frameFromShortcut = service.frame.createFrameOnSelected();
+  if (!frameFromShortcut) {
+    throw new Error('Failed to create frame from selection');
+  }
+  await wait();
+
+  sortedIds = service.edgelessElements.map(element => element.id);
+  expect(sortedIds[0]).toBe(frameFromShortcut.id);
+  expect(sortedIds[1]).toBe(frameFromBound.id);
+  expect(sortedIds[2]).toBe(shapeId);
+  expect(sortedIds[3]).toBe(noteId);
 });
 
 test('layer zindex should update correctly when elements changed', async () => {
